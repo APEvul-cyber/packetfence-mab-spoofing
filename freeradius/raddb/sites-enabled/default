@@ -1,0 +1,77 @@
+# PacketFence-style MAB policy simulation
+# ==========================================
+# Simulates PacketFence's MAB device identification and VLAN assignment.
+#
+# In PacketFence, the MAC address from Calling-Station-Id is used as
+# the device identity. The switch sends MAC as both User-Name and
+# Calling-Station-Id. PacketFence trusts Calling-Station-Id to
+# identify the device and assign VLAN/role accordingly.
+#
+# Source: lib/pf/Switch.pm parseRequest() line ~3276:
+#   my $client_mac = clean_mac($radius_request->{'Calling-Station-Id'});
+#
+# The MAC is then used for:
+#   - Device lookup in node database
+#   - VLAN/role assignment based on device profile
+#   - locationlog tracking (lib/pf/locationlog.pm)
+
+server default {
+
+listen {
+    type = auth
+    ipaddr = *
+    port = 0
+}
+
+listen {
+    type = acct
+    ipaddr = *
+    port = 0
+}
+
+authorize {
+    filter_username
+    preprocess
+    suffix
+    files
+    pap
+}
+
+authenticate {
+    Auth-Type PAP {
+        pap
+    }
+}
+
+post-auth {
+
+    # ========================================================
+    # PacketFence-style MAB policy: MAC → device profile → VLAN
+    # ========================================================
+    # Authorized printer (aa:bb:cc:dd:ee:ff) → corporate VLAN 10
+    if (&User-Name == "aabbccddeeff") {
+        update reply {
+            Tunnel-Type := VLAN
+            Tunnel-Medium-Type := IEEE-802
+            Tunnel-Private-Group-Id := "10"
+            Filter-Id := "corporate-printer"
+            Reply-Message := "MAB: Authorized printer → VLAN 10 (corporate)"
+        }
+    }
+    # Authorized IoT sensor (00:11:22:33:44:55) → IoT VLAN 20
+    elsif (&User-Name == "001122334455") {
+        update reply {
+            Tunnel-Type := VLAN
+            Tunnel-Medium-Type := IEEE-802
+            Tunnel-Private-Group-Id := "20"
+            Filter-Id := "iot-sensor"
+            Reply-Message := "MAB: Authorized IoT sensor → VLAN 20 (IoT)"
+        }
+    }
+
+    Post-Auth-Type REJECT {
+        attr_filter.access_reject
+    }
+}
+
+}

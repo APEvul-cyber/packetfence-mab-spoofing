@@ -1,0 +1,20 @@
+# MAB (MAC Authentication Bypass) user accounts
+# ================================================
+# In MAB, the switch sends Calling-Station-Id (MAC) as both
+# User-Name and User-Password. PacketFence uses Calling-Station-Id
+# from Access-Request to identify the device.
+#
+# Source: lib/pf/Switch.pm parseRequest() line ~3276:
+#   my $client_mac = clean_mac($radius_request->{'Calling-Station-Id'});
+
+# Authorized printer — allowed on corporate VLAN 10
+aabbccddeeff    Cleartext-Password := "aabbccddeeff"
+                Service-Type = Call-Check
+
+# Authorized IoT sensor — allowed on IoT VLAN 20
+001122334455    Cleartext-Password := "001122334455"
+                Service-Type = Call-Check
+
+# Unauthorized device — will be rejected
+DEFAULT         Auth-Type := Reject
+                Reply-Message = "MAB: Unknown device - Access Denied"

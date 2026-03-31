@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  freeradius:
+    build:
+      context: ./freeradius
+    container_name: mab-radius-server
+    networks:
+      radius-net:
+        ipv4_address: 172.20.0.10
+    healthcheck:
+      test: ["CMD", "radiusd", "-C"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  attacker:
+    build:
+      context: ./attacker
+    container_name: mab-attacker
+    depends_on:
+      - freeradius
+    networks:
+      radius-net:
+        ipv4_address: 172.20.0.20
+    volumes:
+      - ./attacker/scripts:/scripts
+    stdin_open: true
+    tty: true
+
+networks:
+  radius-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
